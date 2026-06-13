@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>⚡ Energy Home</title>
+  <title>⚡ Energy Dashboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -231,7 +231,7 @@
 
 
   <div class="refresh-row">
-    <span class="badge">🔄 Auto-refresh ทุก 60 วินาที</span>
+    <span class="badge">🔄 Auto-refresh ทุก 5 นาที</span>
     <span id="countdown"></span>
     <button class="btn-sm" onclick="fetchNow()">รีเฟรชเดี๋ยวนี้</button>
   </div>
@@ -305,18 +305,24 @@
   async function fetchNow() {
     document.getElementById('status').innerHTML = '<span class="spin"></span> กำลังโหลด...';
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(API_URL + '?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       if (!json.length) throw new Error('ไม่พบข้อมูล');
-      const parsed = json.map(r => ({
-        ts:      r['Timestamp'] ? String(r['Timestamp']) : '',
-        date:    r['Timestamp'] ? String(r['Timestamp']).split(' ')[0] : '',
-        voltage: parseFloat(r['Voltage (V)'])  || 0,
-        current: parseFloat(r['Current (A)'])  || 0,
-        power:   parseFloat(r['Power (W)'])    || 0,
-        energy:  parseFloat(r['Energy (kWh)']) || 0,
-      })).filter(r => r.ts && !isNaN(r.energy));
+      const parsed = json.map(r => {
+        const raw = r['Timestamp'] ? String(r['Timestamp']) : '';
+        // รองรับทั้ง "2026-05-28 19:50:21" และ "2026-06-13T17:36:49.000Z"
+        const normalized = raw.replace('T', ' ').replace(/\.\d+Z$/, '');
+        const date = normalized.split(' ')[0];
+        return {
+          ts:      normalized,
+          date:    date,
+          voltage: parseFloat(r['Voltage (V)'])  || 0,
+          current: parseFloat(r['Current (A)'])  || 0,
+          power:   parseFloat(r['Power (W)'])    || 0,
+          energy:  parseFloat(r['Energy (kWh)']) || 0,
+        };
+      }).filter(r => r.ts && !isNaN(r.energy));
       render(parsed);
       const now = new Date().toLocaleString('th-TH');
       document.getElementById('lastUpdated').textContent = '🕐 อัปเดตล่าสุด: ' + now;
